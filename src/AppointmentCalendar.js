@@ -43,6 +43,7 @@ const AppointmentCalendar = () => {
   const [appointments, setAppointments] = useState(initialAppointments);
   const [calendarKey, setCalendarKey] = useState(0);
   const [errorMessage, setErrorMessage] = useState(null);
+  const [showOverlapError, setShowOverlapError] = useState(false);
 
   const handleCellClick = (event) => {
     setSelectedAppointment(event);
@@ -52,10 +53,12 @@ const AppointmentCalendar = () => {
   const handleCloseModal = () => {
     setSelectedAppointment(null);
     setEditedAppointment(null);
+    setShowOverlapError(false); // Reset the overlap error state
     setErrorMessage(null); // Reset the error message
   };
 
   const setError = (message) => {
+    setShowOverlapError(false); // Reset overlap error state when setting another error
     setErrorMessage(message);
   };
 
@@ -81,6 +84,28 @@ const AppointmentCalendar = () => {
       return;
     }
 
+    // Check for overlapping appointments
+    const isOverlapping = appointments.some((appointment) => {
+      // Skip the current edited appointment during the check
+      if (editedAppointment && editedAppointment.id === appointment.id) {
+        return false;
+      }
+
+      return (
+        (editedAppointment.start >= appointment.start &&
+          editedAppointment.start < appointment.end) ||
+        (editedAppointment.end > appointment.start &&
+          editedAppointment.end <= appointment.end) ||
+        (editedAppointment.start <= appointment.start &&
+          editedAppointment.end >= appointment.end)
+      );
+    });
+
+    if (isOverlapping) {
+      setShowOverlapError(true);
+      return;
+    }
+
     if (editedAppointment && editedAppointment.id) {
       setAppointments((prevAppointments) => {
         const updatedAppointments = prevAppointments.map((appointment) =>
@@ -97,6 +122,8 @@ const AppointmentCalendar = () => {
         { ...editedAppointment, id: Date.now() }, // Generate a unique ID for new appointment
       ]);
     }
+
+    setShowOverlapError(false); // Reset overlap error state when appointment is successfully added/updated
     handleCloseModal();
   };
 
@@ -126,7 +153,7 @@ const AppointmentCalendar = () => {
         endAccessor="end"
         style={{ height: 500 }}
         views={["day", "week", "month"]}
-        defaultView="week"
+        defaultView="day"
         // Set the minimum and maximum times for appointments on the calendar
         min={new Date(2023, 7, 2, 8, 0)}
         max={new Date(2023, 7, 2, 17, 0)}
@@ -158,6 +185,11 @@ const AppointmentCalendar = () => {
           {errorMessage && (
             <div style={{ color: "red", marginBottom: "10px" }}>
               {errorMessage}
+            </div>
+          )}
+          {showOverlapError && (
+            <div style={{ color: "red", marginBottom: "10px" }}>
+              Another appointment is already booked during this time slot.
             </div>
           )}
           {editedAppointment && (
